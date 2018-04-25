@@ -12,7 +12,7 @@ public class Client extends AsyncTask<Void, Void, Void> {
 
 	String dstAddress;
 	int dstPort;
-	String response = "";
+	public String response;
 	TextView textResponse;
 
 	Client(String addr, int port,TextView textResponse) {
@@ -42,8 +42,9 @@ public class Client extends AsyncTask<Void, Void, Void> {
 			while ((bytesRead = inputStream.read(buffer)) != -1) {
 				byteArrayOutputStream.write(buffer, 0, bytesRead);
 				response += byteArrayOutputStream.toString("UTF-8");
-			}
 
+			}
+			System.out.println("HELLO client response: "+response);
 		} catch (UnknownHostException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -66,12 +67,15 @@ public class Client extends AsyncTask<Void, Void, Void> {
 	}
 
 
-
-
 	@Override
 	protected void onPostExecute(Void result) {
+
 		textResponse.setText(response + " - Received");
 		super.onPostExecute(result);
+	}
+
+	public String getResponse() {
+		return response;
 	}
 
 }

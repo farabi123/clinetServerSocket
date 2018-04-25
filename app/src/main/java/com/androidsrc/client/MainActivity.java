@@ -1,8 +1,10 @@
 package com.androidsrc.client;
 
+import android.content.Context;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.app.Activity;
 import android.util.Log;
@@ -25,15 +27,19 @@ import static com.androidsrc.client.MainActivity.Robots.MRS;
 
 public class MainActivity extends Activity  implements SensorEventListener {
 
+	Client myClient;
 	TextView response;
 	String mainResponse;
 	Button buttonConnect;
 	Server server;
 	TextView infoip, msg;
 	// IP ADDRESS OF BLACK PHONE/MINION
-	String phoneIpAddress = "169.234." +"55.246";
+	String phoneIpAddress = "169.234." +"94.219";
 	boolean pressed = false;
-	Client myClient = new Client(phoneIpAddress, 8080, response);
+	//variables for compass
+	private SensorManager mSensorManager;
+	private Sensor mCompass, mAccelerometer;
+	float[] mGeomagnetic;
 
 	//grid variables
 	public boolean autoMode = false;
@@ -41,9 +47,13 @@ public class MainActivity extends Activity  implements SensorEventListener {
 	//variables for logging
 	float[] mGrav;
 	float[] mAcc;
-	float[] mGyro;
 	float[] mGeo;
 	String TAG1 = "MASTER";
+	//variables for logging
+	private Sensor mGyroscope;
+	private Sensor mGravityS;
+	float[] mGravity;
+	float[] mGyro;
 
 	//Master variables
 	boolean initialFieldScan = true,
@@ -91,22 +101,26 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 		msg = (TextView) findViewById(R.id.msg);
 		server = new Server(this);
-		buttonConnect = (Button) findViewById(R.id.connectButton);
+	//	buttonConnect = (Button) findViewById(R.id.connectButton);
 		response = (TextView) findViewById(R.id.responseTextView);
-		buttonConnect.setOnClickListener(new OnClickListener() {
+	/*	buttonConnect.setOnClickListener(new OnClickListener() {
 
-			@Override
+
+	/*		@Override
 			public void onClick(View arg0) {
-				myClient.execute();
+				pressed=true;
 			}
-		});
+		});*/
 
+			myClient = new Client(phoneIpAddress, 8080, response);
+			myClient.execute();
 
-
-		mainResponse = myClient.response;
-		System.out.println("HELLO mainResponse: "+mainResponse);
-
-
+//set up compass
+		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+		mCompass= mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+		mAccelerometer= mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+		mGravityS = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
 
 		free_robots.add(doc);
 		free_robots.add(mr);
@@ -128,8 +142,9 @@ public class MainActivity extends Activity  implements SensorEventListener {
 	//Called whenever the value of a sensor changes
 	@Override
 	public final void onSensorChanged(SensorEvent event) {
-		if (event.sensor.getType() == Sensor.TYPE_GRAVITY)
-			mGrav = event.values;
+
+		if (event.sensor.getType() == Sensor.TYPE_GRAVITY){
+			mGrav = event.values;}
 		if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE)
 			mGyro = event.values;
 		if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
@@ -137,7 +152,9 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
 			mGeo = event.values;
 
+		mainResponse = myClient.getResponse();
 
+		Log.i("app.main.client","mainresponse"+mainResponse+"\n");
 
 		receive_from_m (mainResponse);      //place string from wifi network in function here
 		Robot assign_mission;
@@ -148,7 +165,6 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 		}
 
-
 		//updateDisplay();
 
 	}
@@ -156,13 +172,14 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 	//receives info in form of string & parses to variables' appropriate types
 	void receive_from_m (String data) {
-		String string_name = data.substring(data.indexOf("NAME"),data.indexOf("GPS")),
+		Log.i("app.main.client","data"+data+"\n");
+		String string_name; /*= data.substring(data.indexOf("NAME"),data.indexOf("GPS")),
 				string_gps = data.substring(data.indexOf("GPS"),data.indexOf("MANN")),
 				string_mann = data.substring(data.indexOf("MANN"),data.indexOf("LGPS")),
-				string_lidarGPS = data.substring(data.indexOf("LGPS"),data.length());
+				string_lidarGPS = data.substring(data.indexOf("LGPS"),data.length());*/
 
 		//get name of minion that sent string
-		string_name = string_name.substring(string_name.indexOf(":")+2,string_name.indexOf(","));
+		string_name =""; /*string_name.substring(string_name.indexOf(":")+2,string_name.indexOf(","));*/
 
 		// Set robot name from message string
 		switch (string_name) {
@@ -195,7 +212,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		}
 
 
-
+/*
 		System.out.println("HELLO " + string_name);
 		System.out.println("HELLO " + string_gps);
 		System.out.println("HELLO " + string_mann);
@@ -300,6 +317,35 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 		double[] getObjectLocation () { return lgps; }
 	}
+
+	//Called whenever activity resumes from pause
+	@Override
+	public void onResume() {
+		super.onResume();
+		mSensorManager.registerListener(this, mCompass, SensorManager.SENSOR_DELAY_NORMAL);
+		mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_NORMAL);
+		mSensorManager.registerListener(this, mGyroscope, SensorManager.SENSOR_DELAY_NORMAL);
+		mSensorManager.registerListener(this, mGravityS, SensorManager.SENSOR_DELAY_NORMAL);
+
+	}
+
+	//Called when activity pauses
+	@Override
+	public void onPause() {
+		super.onPause();
+		mSensorManager.unregisterListener(this);
+
+	}
+
+
+	//Called when activity restarts. onCreate() will then be called
+	@Override
+	public void onRestart() {
+		super.onRestart();
+		Log.i("activity cycle","main activity restarting");
+	}
+
+
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
