@@ -32,31 +32,36 @@
 
 
     </ScrollView>
+
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical" >
+        android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/gps_string_tv"
-        android:layout_width="130dp"
-        android:layout_height="wrap_content"
-        android:layout_alignParentTop="true"
-        android:layout_alignParentStart="true" />
+        <TextView
+            android:id="@+id/gps_string_tv"
+            android:layout_width="129dp"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentTop="true" />
 
         <TextView
             android:id="@+id/gps_searching_string_tv"
-            android:layout_width="130dp"
+            android:layout_width="129dp"
             android:layout_height="wrap_content"
             android:layout_alignParentTop="true"
-            android:layout_toStartOf="@+id/gps_confirm_string_tv" />
+            android:layout_centerHorizontal="true"
+            android:textSize="12sp" />
 
 
         <TextView
-        android:id="@+id/gps_confirm_string_tv"
-        android:layout_width="130dp"
-        android:layout_height="wrap_content"
-        android:layout_alignParentRight="true"/>
+            android:id="@+id/gps_confirm_string_tv"
+            android:layout_width="127dp"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentTop="true"
+            android:textSize="12sp" />
 
     </RelativeLayout>
 
