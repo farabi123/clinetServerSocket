@@ -1,5 +1,7 @@
 package com.androidsrc.client;
 
+import android.util.Log;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -21,12 +23,13 @@ import java.util.Enumeration;
 public class Server {
     MainActivity activity;
     ServerSocket serverSocket;
-    String msgReply = "";
+    public String msgReply = "";
     public String message = "";
     static final int socketServerPORT = 8080;
 
-    public Server(MainActivity activity) {
+    public Server(MainActivity activity, String msgReply) {
         this.activity = activity;
+        this.msgReply = msgReply;
         Thread socketServerThread = new Thread(new SocketServerThread());
         socketServerThread.start();
     }
@@ -96,13 +99,15 @@ public class Server {
         @Override
         public void run() {
             OutputStream outputStream;
-            msgReply = "HELLO FROM MASTER";
+            //msgReply = "HELLO FROM MASTER";
                     //"Hello from Master,send me your info, you are #" + cnt +"\n"; ////////////////////////////////////////////////////////////////
 
+            Log.i("HIYA2222222",msgReply);
             try {
                 outputStream = hostThreadSocket.getOutputStream();
                 PrintStream printStream = new PrintStream(outputStream);
                 printStream.print(msgReply);
+
                 printStream.close();
 
                 message = "";//"Sent Text to black phone";

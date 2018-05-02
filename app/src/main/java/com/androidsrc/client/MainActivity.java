@@ -5,6 +5,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
 import android.util.Log;
@@ -17,34 +18,21 @@ import android.widget.TextView;
 import java.util.Arrays;
 import java.util.LinkedList;
 
-import static com.androidsrc.client.MainActivity.Robots.CARLA;
-import static com.androidsrc.client.MainActivity.Robots.CARLETON;
-import static com.androidsrc.client.MainActivity.Robots.CARLITO;
-import static com.androidsrc.client.MainActivity.Robots.CARLOS;
-import static com.androidsrc.client.MainActivity.Robots.CARLY;
-import static com.androidsrc.client.MainActivity.Robots.DOC;
-import static com.androidsrc.client.MainActivity.Robots.MR;
-import static com.androidsrc.client.MainActivity.Robots.MRS;
 import static java.util.Arrays.asList;
 
 public class MainActivity extends Activity  implements SensorEventListener {
 
-	Client myClient;
 	TextView response;
 	String mainResponse="";
-	Button buttonConnect;
 	Server server;
+	DisplayLists displayLists;
 	TextView infoip, msg;
 	// IP ADDRESS OF BLACK PHONE/MINION
-	String phoneIpAddress = "169.234." +"125.170";
 	boolean pressed = false;
 	//variables for compass
 	private SensorManager mSensorManager;
 	private Sensor mCompass, mAccelerometer;
 	float[] mGeomagnetic;
-
-	//grid variables
-	public boolean autoMode = false;
 
 	//variables for logging
 	float[] mGrav;
@@ -63,33 +51,34 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 	double[] destinationLoc = new double[2];
 
-	double[][] gpsList = new double[25][2];
-	double[][] searchingList = new double[25][2];
-	//ArrayList<double[]>searchingList=new ArrayList<double[]>(25);
-	double[][] confirmedList = new double[25][2];
+	public double[][] gpsList = new double[25][2],
+			   searchingList = new double[25][2],
+			   confirmedList = new double[25][2];
 
 
 	String gpsListString = "",
 			searhcingListString = "",
 			confirmedListString = "";
 
-	enum Robots {
-		DOC, MR, MRS, CARLITO, CARLOS, CARLY, CARLA, CARLETON,
-	}
-	Robots minion; //initialize minion
+	// defines ip addresses for each robot's (/minion's) phone
+	String test = "169.234." + "77.136";
+	String ip_doc = test,
+			ip_mr = test,
+			ip_mrs = test,
+			ip_carlito = test,
+			ip_carlos = test,
+			ip_carly = test,
+			ip_carla = test,
+			ip_carleton = test;
 
-	double[] gps_coords = {0,0};    //initialize minion gps
+	// initializes the starting position of robots (/minions)
+	double[] gps_coords = {12,13};    //initialize minion gps
 
-	Robot doc = new Robot(DOC, gps_coords, true);
-	Robot mr = new Robot(MR, gps_coords, true);
-	Robot mrs = new Robot(MRS, gps_coords, true);
-	Robot carlito = new Robot(CARLITO, gps_coords, true);
-	Robot carlos = new Robot(CARLOS, gps_coords, true);
-	Robot carly = new Robot(CARLY, gps_coords, false);
-	Robot carla = new Robot(CARLA, gps_coords, false);
-	Robot carleton = new Robot(CARLETON, gps_coords, false);
+	// creates minions for master app to communicate w/ & command
+	Robot doc, mr, mrs, carlito, carlos, carly, carla, carleton;
 
-	Robot robot; // add way of switching
+	// defines a variable used by master app to switch communication among minions
+	Robot robot;
 
 	LinkedList<Robot> free_robots=new LinkedList<>();
 
@@ -104,9 +93,15 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		list1 = (TextView) findViewById(R.id.gps_string_tv);
 		list2 = (TextView) findViewById(R.id.gps_searching_string_tv);
 		list3 = (TextView) findViewById(R.id.gps_confirm_string_tv);
+
+		// print object lists on separate thread (removes app lag)
+		displayLists = new DisplayLists(MainActivity.this,
+				list1,list2,list3,
+				gpsList,searchingList,confirmedList);
+
 		// ADDED FROM SERVER
 		msg = (TextView) findViewById(R.id.msg);
-		server = new Server(this);
+		server = new Server(this,"");
 	//	buttonConnect = (Button) findViewById(R.id.connectButton);
 		response = (TextView) findViewById(R.id.responseTextView);
 	/*	buttonConnect.setOnClickListener(new OnClickListener() {
@@ -118,8 +113,29 @@ public class MainActivity extends Activity  implements SensorEventListener {
 			}
 		});*/
 
-			myClient = new Client(phoneIpAddress, 8080, response);
-			myClient.execute();
+			//myClient = new Client(phoneIpAddress, 8080, response);
+			//myClient.execute();
+
+		doc = new Robot(ip_doc,true, gps_coords);
+		mr = new Robot(ip_mr,true, gps_coords);
+		mrs = new Robot(ip_mrs,true, gps_coords);
+		carlito = new Robot(ip_carlito,true, gps_coords);
+		carlos = new Robot(ip_carlos,true, gps_coords);
+		carly = new Robot(ip_carly,true, gps_coords);
+		carla = new Robot(ip_carla,true, gps_coords);
+		carleton = new Robot(ip_carleton,true, gps_coords);
+
+		// execute threads to run
+		displayLists.execute();
+//		doc.mClient.execute();
+//		mr.mClient.execute();
+//		mrs.mClient.execute();
+//		carlito.mClient.execute();
+		carlos.mClient.execute();
+//		carly.mClient.execute();
+//		carla.mClient.execute();
+//		carleton.mClient.execute();
+
 
 //set up compass
 		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -128,6 +144,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		mGyroscope = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
 		mGravityS = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
 
+		// add free robot to link list to be assigned search locations later
 		free_robots.add(doc);
 		free_robots.add(mr);
 		free_robots.add(mrs);
@@ -158,8 +175,10 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
 			mGeo = event.values;
 
-		mainResponse = myClient.response;
-		Log.i("app.main.client","mainresponse: "+mainResponse+"\n");
+		/***** MAIN CODE *****/
+		//mainResponse = myClient.response;
+		mainResponse = carlos.mClient.response;
+		//Log.i("app.main.client","mainresponse: "+mainResponse+"\n");
 
 
 		if(!mainResponse.isEmpty()) {
@@ -169,28 +188,93 @@ public class MainActivity extends Activity  implements SensorEventListener {
 			// FOR TESTING ONLY
 			double[] newPos = {33,33};
 			//gpsList = addToList(gpsList,newPos);
-			//robot.setMannStatus(true);
 			//robot.setRobotLocation(searchingList[0]);
+			//robot.setMannStatus(true);
 			// END
 
 			if (isFieldScanComplete) {
 				while (!free_robots.isEmpty()) {
 					assign_mission = free_robots.pop();
-					setClosestObjectDistance(assign_mission);
+					setClosestObjectDistance(assign_mission, gpsList);
 				}
+
+				double[] loc = {13,117};
+				robot.setRobotLocation(loc);
 			}
 			updateDisplay();
 
+			if (isFieldScanComplete) {
+				robot.setMannStatus(true);
+			}
+
+			isFieldScanComplete = true;
+			//send_to_m(robot,true,true, newPos);
+
 		}
+		/***** END *****/
 
 
 
 	}
 	/******************************************************************MASTER CONTROLLER FUNCTIONS****************************************/
+	private class Robot {
+		double[] location;
+		boolean isMannequinFound = false;
+		boolean isSearching = false;
+		boolean hasLidar;
+		double[] destination = new double[2];
+		double[] lgps = new double[2];
+		Client mClient;
+		//Server mServer;
+
+		Robot(String phoneIp, boolean hasLidar, double[] location) {
+			this.mClient = new Client(phoneIp,8080, response);
+			//this.mServer = new Server(MainActivity.this);
+			this.hasLidar = hasLidar;
+			this.location = location;
+		}
+
+		double[] getRobotLocation() {
+			return location;
+		}
+
+		void setRobotLocation (double[] location) {
+			this.location = location;
+		}
+
+		void setDestination (double[] destination) {
+			this.destination = destination;
+			this.isSearching = true;
+		}
+
+		void setMannStatus(boolean state) {
+			this.isMannequinFound = state;
+
+			if (isMannequinFound) {
+				this.isSearching = false;
+			}
+		}
+
+		boolean isHasLidar() { return this.hasLidar; }
+
+		boolean getMannStatus() {
+			return this.isMannequinFound;
+		}
+
+		boolean getSearchingStatus() {
+			return this.isSearching;
+		}
+
+		void setObjectLocation (double[] lidarGPS) {
+			this.lgps = lidarGPS;
+		}
+
+		double[] getObjectLocation () { return lgps; }
+	}
 
 	//receives info in form of string & parses to variables' appropriate types
 	void receive_from_m (String data) {
-		Log.i("app.main.client","data"+data+"\n");
+		//Log.i("app.main.client","data: "+data+"\n");
 		String string_name = data.substring(data.indexOf("NAME"),data.indexOf("GPS")),
 				string_gps = data.substring(data.indexOf("GPS"),data.indexOf("MANN")),
 				string_mann = data.substring(data.indexOf("MANN"),data.indexOf("LGPS")),
@@ -240,40 +324,30 @@ public class MainActivity extends Activity  implements SensorEventListener {
             robot.setObjectLocation(getCoords(string_lidarGPS));
         }
 	}
+
+	// updates phone display
 	void updateDisplay () {
+		double[] robotLoc = robot.getRobotLocation();
+
 		if (!isFieldScanComplete) { // robots not have completed scan of field
 			if (robot.isHasLidar()) {
 				// add object location to gps list
+
 				gpsList = addToList(gpsList, robot.getObjectLocation());
-
-				// update GPS locations list string
-				gpsListString = printList(gpsList);
-
-				// update GPS locations list string
-				gpsListString = printList(gpsList);
-
-				// update searching list string
-				searhcingListString = printList(searchingList);
-
-				// update confirmed String
-				confirmedListString = printList(confirmedList);
-
-				Log.i("app.main.client","GPS String: " + gpsListString);
-				displayMessageToList(gpsListString);
-				displayMessageToSearchingList(searhcingListString);
-				displayMessageToConfirmedList(confirmedListString);
 			}
 		} else { // robots have completed scan of field yet
 
 			// move locations from searching to confirmed list once robot has confirmed
 			if (robot.getMannStatus()) {
+				Log.i("HERE","NOW2");
 				// match GPS coords that were found w/ coords on the list
 				for (int i=0; i<searchingList.length; i++) {
-					if (searchingList[i][0] != 0 && searchingList[i][1] != 0 &&
-							searchingList[i][0] >= robot.getRobotLocation()[0]-0.000008993 &&
-							searchingList[i][0] <= robot.getRobotLocation()[0]+0.000008993 &&
-							searchingList[i][1] >= robot.getRobotLocation()[1]-0.000008993 &&
-							searchingList[i][1] <= robot.getRobotLocation()[1]+0.000008993) {
+					if (searchingList[i][0] != -1 && searchingList[i][1] != -1 &&
+							searchingList[i][0] >= robotLoc[0]-0.000008993 &&
+							searchingList[i][0] <= robotLoc[0]+0.000008993 &&
+							searchingList[i][1] >= robotLoc[1]-0.000008993 &&
+							searchingList[i][1] <= robotLoc[1]+0.000008993)
+					{
 						// add GPS coords to confirmed list
 						confirmedList[i][0] = searchingList[i][0];
 						confirmedList[i][1] = searchingList[i][1];
@@ -282,104 +356,61 @@ public class MainActivity extends Activity  implements SensorEventListener {
 						searchingList[i][0] = -1;
 						searchingList[i][1] = -1;
 
+						Log.i("HERE","NOW");
 					}
 				}
 			}
-
-			// update GPS locations list string
-			gpsListString = printList(gpsList);
-
-			// update searching list string
-			searhcingListString = printList(searchingList);
-
-			// update confirmed String
-			confirmedListString = printList(confirmedList);
-
-			displayMessageToList(gpsListString);
-			displayMessageToSearchingList(searhcingListString);
-			displayMessageToConfirmedList(confirmedListString);
-
 		}
+
+		displayLists = new DisplayLists(MainActivity.this,
+				list1,list2,list3,
+				gpsList,searchingList,confirmedList);
+		displayLists.execute();
 	}
 
-	//sends instructions to m
-	void send_to_m (Robots name, boolean mode, boolean scanMode, double[] dest) {
-		String toMinion = "AUTOMODE: " + mode +
-				"SCANMODE: " + scanMode +
-				"DEST[LAT:" + dest[0] + ", LON:" + dest[1] + "], ";
+	// sends instructions to minion
+	void send_to_m (Robot robot, boolean mode, boolean scanMode, double[] dest) {
+		String toMinion = "AUTOMODE: " + mode + ", " +
+				"SCANMODE: " + scanMode + ", " +
+				"DEST[LAT:" + dest[0] + ", LON:" + dest[1] + "]";
 
 		if (scanMode) {
-			switch (name) {
-				case DOC:
-					server.msgReply = toMinion;
-					//ADD SEND CODE
-					break;
-				case MR:
-					//ADD SEND CODE
-					break;
-				case MRS:
-					//ADD SEND CODE
-				case CARLITO:
-					//ADD SEND CODE
-					break;
-				default:
-					Log.i("ERROR", "Invalid robot name. Robot not listed as enabled with LIDAR. Only robots with LIDAR can move right now.");
+			if (robot.hasLidar) {
+				server = new Server(this,toMinion);
+				//Log.i("HIYA",server.msgReply);
+			} else {
+				Log.i(TAG1, "Invalid robot name. Robot not listed as enabled with LIDAR. Only robots with LIDAR can move right now.");
 			}
 		} else {
-			switch (name) {
-				case DOC:
-					//ADD SEND CODE
-					break;
-				case MR:
-					//ADD SEND CODE
-					break;
-				case MRS:
-					//ADD SEND CODE
-				case CARLITO:
-					//ADD SEND CODE
-					break;
-				case CARLOS:
-					//ADD SEND CODE
-					break;
-				case CARLY:
-					//ADD SEND CODE
-					break;
-				case CARLA:
-					//ADD SEND CODE
-					break;
-				case CARLETON:
-					//ADD SEND CODE
-					break;
-				default:
-					Log.i("ERROR", "Invalid robot name. Refer to Robot name list in code.");
-			}
+			//robot.mServer.msgReply = toMinion;
 		}
 	}
 
-	void setClosestObjectDistance(Robot inst) {
+	// assigns robot to closest gps location on list
+	void setClosestObjectDistance(Robot robot, double[][] list) {
 		double[] minLoc = new double[2];
-		double min = 100000.0;//should be large, not small. I am assuming the position data is positive
+		//double tooFar = 100000.0;
+		double min = 100000.0; //should be large, not small. I am assuming the position data is positive
+		int minIndex = 0;
+		double[] never_reach_location = {-1,-1};
+		double objDis;
 
 		// Calculate distances of objects from robot's current location
 		for (int i=0; i<25; i++) {
-			if(distanceFormula(inst.getRobotLocation(),gpsList[i]) < min &&
-					distanceFormula(inst.getRobotLocation(),gpsList[i])<100000.0)
+			objDis = distanceFormula(robot.getRobotLocation(),list[i]);
+
+			if(list[i][0]!=-1 && list[i][1]!=-1 && objDis < min )
 			{//the second condition limit the min to be impossible location
-				min = distanceFormula(inst.getRobotLocation(),gpsList[i]);
-				minLoc = gpsList[i];
+				min = distanceFormula(robot.getRobotLocation(),list[i]);
+				minLoc = list[i];
+				minIndex = i;
 			}
 		}
 
-		inst.setDestination(minLoc);
-		if(asList(gpsList).contains(minLoc)){
-
-			//assume there is no duplicate location in gpsList
-			int index = Arrays.asList(gpsList).indexOf(minLoc);
-			searchingList[index] = gpsList[index];
-
-			//assume this will never be reached, same purpose with remove the location from array
-			double[] never_reach_location = {100000.0,100000.0};
-			gpsList[index] = never_reach_location;
+		if (list[minIndex][0] != -1 && list[minIndex][1] != -1 && list[minIndex][0] != 0 && list[minIndex][1] != 0) {
+			robot.setDestination(minLoc);
+			searchingList[minIndex] = list[minIndex];
+			gpsList[minIndex] = never_reach_location;
 		}
 	}
 
@@ -387,6 +418,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		return Math.sqrt((gps2[0]-gps1[0])*(gps2[0]-gps1[0]) - (gps2[1]-gps1[1])*(gps2[1]-gps1[1]) );
 	}
 
+	// takes string coordinates of the form LAT:##,LON:##; returns double[]
 	double[] getCoords (String str) {
 		int find_comma, find_colon;
 
@@ -412,75 +444,30 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		return coords;
 	}
 
-	private class Robot {
-		Robots name;
-		double[] location = new double[2];
-		boolean isMannequinFound = false;
-		boolean isSearching = false;
-		boolean hasLidar = false;
-		double[] destination = new double[2];
-		double[] lgps = new double[2];
-
-		Robot(Robots name, double[] location, boolean hasLidar) {
-			this.name = name;
-			this.location = location;
-			this.hasLidar = hasLidar;
-		}
-
-		Robots getName () {
-			return name;
-		}
-
-		double[] getRobotLocation() {
-			return location;
-		}
-
-		void setRobotLocation (double[] location) {
-			this.location = location;
-		}
-
-		void setDestination (double[] destination) {
-			this.destination = destination;
-			this.isSearching = true;
-		}
-
-		void setMannStatus(boolean state) {
-			this.isMannequinFound = state;
-
-			if (isMannequinFound) {
-				this.isSearching = false;
-			}
-		}
-
-		boolean isHasLidar() { return this.hasLidar; }
-
-		boolean getMannStatus() {
-			return this.isMannequinFound;
-		}
-
-		boolean getSearchingStatus() {
-			return this.isSearching;
-		}
-
-		void setObjectLocation (double[] lidarGPS) {
-			this.lgps = lidarGPS;
-		}
-
-		double[] getObjectLocation () { return lgps; }
-	}
-	// add a new entry to a list of double[] if
+	// add a new entry to a list of double[] if not already in list
 	private double[][] addToList (double[][] list, double[] newEntry) {
 		int mCounter = 0;
+		boolean isCopy = false;
 
-		// find a spot on list that isn't already taken
-		while (list[mCounter][0] != 0 && list[mCounter][1] != 0 && mCounter < list.length-1) {
-			++mCounter;
+		for ( double[] entry : list
+			 ) {
+			if (entry[0] == newEntry[0] && entry[1] == newEntry[1]) {
+				isCopy = true;
+			}
+
 		}
 
-		// return error message if list is full; otherwise, add to new entry to list
-		if (mCounter == list.length) {
-			Log.i(TAG1, "GPS List is full!");
-		} else {
+		if(!isCopy) {
+			// find a spot on list that isn't already taken
+			while (list[mCounter][0] != 0 && list[mCounter][1] != 0 && mCounter < list.length - 1) {
+				mCounter++;
+			}
+
+
+			// return error message if list is full; otherwise, add to new entry to list
+			if (mCounter == list.length) {
+				Log.i(TAG1, "GPS List is full!");
+			} else {
 
 //			for (int counter = 0; counter < list.length-1; counter++) {
 //				if (list[mCounter][0] == newEntry[0] && list[mCounter][1] == newEntry[1]) {
@@ -488,38 +475,11 @@ public class MainActivity extends Activity  implements SensorEventListener {
 //				}
 //			}
 
-			if (!Arrays.asList(list).contains(newEntry)) {
 				list[mCounter] = newEntry;
 			}
 		}
-
 		return list;
 
-	}
-
-	private String printList (double[][] list) {
-		String str = "";
-
-		for (int i=0; i<list.length; i++) {
-			str = str + "[LAT:" + (float) list[i][0] + ", LON:" + (float) list[i][1] + "] \n";
-		}
-
-		return str;
-	}
-	private void displayMessageToList(String message) {
-		Log.i("app.main.client","HELLO MESSAGE" + message+"\n");
-		//TextView list1 = (TextView) findViewById(R.id.gps_string_tv);
-		list1.setText(message);
-	}
-
-	private void displayMessageToSearchingList(String message) {
-	//	TextView list2 = (TextView) findViewById(R.id.gps_searching_string_tv);
-		list2.setText(message);
-	}
-
-	private void displayMessageToConfirmedList(String message) {
-		//TextView list3 = (TextView) findViewById(R.id.gps_confirm_string_tv);
-		list3.setText(message);
 	}
 
 	//Called whenever activity resumes from pause
