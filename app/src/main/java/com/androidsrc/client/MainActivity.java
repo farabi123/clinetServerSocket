@@ -5,14 +5,9 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.app.Activity;
 import android.util.Log;
-import android.view.View;
-import android.view.View.OnClickListener;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.TextView;
 
 import java.util.Arrays;
@@ -55,10 +50,6 @@ public class MainActivity extends Activity  implements SensorEventListener {
 			   searchingList = new double[25][2],
 			   confirmedList = new double[25][2];
 
-
-	String gpsListString = "",
-			searhcingListString = "",
-			confirmedListString = "";
 
 	// defines ip addresses for each robot's (/minion's) phone
 	String test = "169.234." + "77.136";
@@ -176,6 +167,8 @@ public class MainActivity extends Activity  implements SensorEventListener {
 			mGeo = event.values;
 
 		/***** MAIN CODE *****/
+		double[] newPos = {12,117};
+
 		//mainResponse = myClient.response;
 		mainResponse = carlos.mClient.response;
 		//Log.i("app.main.client","mainresponse: "+mainResponse+"\n");
@@ -198,7 +191,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 			updateDisplay();
 
 			isFieldScanComplete = true;
-			//send_to_m(robot,true,true, newPos);
+			send_to_m(robot,true,true, newPos);
 
 		}
 		/***** END *****/
@@ -319,6 +312,8 @@ public class MainActivity extends Activity  implements SensorEventListener {
 	void updateDisplay () {
 		double[] robotLoc = robot.getRobotLocation();
 		double gpsError = 0.000008993;
+		int index = 100000;
+		double currLAT, currLON;
 
 		if (!isFieldScanComplete) { // robots not have completed scan of field
 			if (robot.isHasLidar()) {
@@ -331,21 +326,18 @@ public class MainActivity extends Activity  implements SensorEventListener {
 			// move locations from searching to confirmed list once robot has confirmed
 			if (robot.getMannStatus()) {
 				Log.i("HERE","{" + robotLoc[0] + ", " + robotLoc[1] + "}");
+
 				// match GPS coords that were found w/ coords on the list
 				for (int i=0; i<searchingList.length; i++) {
-					Log.i("HERE2","{" + searchingList[i][0] + ", " + searchingList[i][1] + "}");
-					if (
-							/*
-							searchingList[i][0] >= robotLoc[0] - gpsError &&
-							searchingList[i][0] <= robotLoc[0] + gpsError &&
-							searchingList[i][1] >= robotLoc[1] - gpsError &&
-							searchingList[i][1] <= robotLoc[1] + gpsError)
-							*/
-							robotLoc[0] >= (searchingList[i][0] - gpsError) &&
-									robotLoc[0] <= (searchingList[i][0] + gpsError) &&
-									robotLoc[1] >= (searchingList[i][1] - gpsError) &&
-									robotLoc[1] <= (searchingList[i][1] + gpsError))
+					currLAT = searchingList[i][0];
+					currLON = searchingList[i][1];
+					Log.i("HERE--","{" + currLAT + ", " + currLON + "}");
+					Log.i("HERE--","-----");
+					if ((currLAT >= (robotLoc[0] - gpsError) && (currLAT <= robotLoc[0] + gpsError)) &&
+							(currLON>= (robotLoc[1] - gpsError) && (currLON <= (robotLoc[1] + gpsError))))
 					{
+						index = i;
+						/*
 						// add GPS coords to confirmed list
 						confirmedList[i][0] = searchingList[i][0];
 						confirmedList[i][1] = searchingList[i][1];
@@ -354,7 +346,10 @@ public class MainActivity extends Activity  implements SensorEventListener {
 						searchingList[i][0] = -1;
 						searchingList[i][1] = -1;
 
-						Log.i("HERE","-----COMPLETE");
+						*/
+						Log.i("COMPLETE","-----COMPLETE: " + index);
+
+
 					}
 				}
 			}
@@ -372,10 +367,12 @@ public class MainActivity extends Activity  implements SensorEventListener {
 				"SCANMODE: " + scanMode + ", " +
 				"DEST[LAT:" + dest[0] + ", LON:" + dest[1] + "]";
 
+		Log.i("HERE","A");
+
 		if (scanMode) {
 			if (robot.hasLidar) {
 				server = new Server(this,toMinion);
-				//Log.i("HIYA",server.msgReply);
+				Log.i("HIYA",server.msgReply);
 			} else {
 				Log.i(TAG1, "Invalid robot name. Robot not listed as enabled with LIDAR. Only robots with LIDAR can move right now.");
 			}
