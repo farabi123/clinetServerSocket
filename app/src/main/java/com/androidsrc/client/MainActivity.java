@@ -185,27 +185,17 @@ public class MainActivity extends Activity  implements SensorEventListener {
 			receive_from_m(mainResponse);
 			Robot assign_mission;
 
-			// FOR TESTING ONLY
-			double[] newPos = {33,33};
-			//gpsList = addToList(gpsList,newPos);
-			//robot.setRobotLocation(searchingList[0]);
-			//robot.setMannStatus(true);
-			// END
-
 			if (isFieldScanComplete) {
 				while (!free_robots.isEmpty()) {
 					assign_mission = free_robots.pop();
 					setClosestObjectDistance(assign_mission, gpsList);
 				}
 
-				double[] loc = {13,117};
+				double[] loc = {13.555,117.85};
 				robot.setRobotLocation(loc);
-			}
-			updateDisplay();
-
-			if (isFieldScanComplete) {
 				robot.setMannStatus(true);
 			}
+			updateDisplay();
 
 			isFieldScanComplete = true;
 			//send_to_m(robot,true,true, newPos);
@@ -274,7 +264,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 	//receives info in form of string & parses to variables' appropriate types
 	void receive_from_m (String data) {
-		//Log.i("app.main.client","data: "+data+"\n");
+		Log.i("app.main.client",""+data+"\n");
 		String string_name = data.substring(data.indexOf("NAME"),data.indexOf("GPS")),
 				string_gps = data.substring(data.indexOf("GPS"),data.indexOf("MANN")),
 				string_mann = data.substring(data.indexOf("MANN"),data.indexOf("LGPS")),
@@ -328,6 +318,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 	// updates phone display
 	void updateDisplay () {
 		double[] robotLoc = robot.getRobotLocation();
+		double gpsError = 0.000008993;
 
 		if (!isFieldScanComplete) { // robots not have completed scan of field
 			if (robot.isHasLidar()) {
@@ -339,14 +330,21 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 			// move locations from searching to confirmed list once robot has confirmed
 			if (robot.getMannStatus()) {
-				Log.i("HERE","NOW2");
+				Log.i("HERE","{" + robotLoc[0] + ", " + robotLoc[1] + "}");
 				// match GPS coords that were found w/ coords on the list
 				for (int i=0; i<searchingList.length; i++) {
-					if (searchingList[i][0] != -1 && searchingList[i][1] != -1 &&
-							searchingList[i][0] >= robotLoc[0]-0.000008993 &&
-							searchingList[i][0] <= robotLoc[0]+0.000008993 &&
-							searchingList[i][1] >= robotLoc[1]-0.000008993 &&
-							searchingList[i][1] <= robotLoc[1]+0.000008993)
+					Log.i("HERE2","{" + searchingList[i][0] + ", " + searchingList[i][1] + "}");
+					if (
+							/*
+							searchingList[i][0] >= robotLoc[0] - gpsError &&
+							searchingList[i][0] <= robotLoc[0] + gpsError &&
+							searchingList[i][1] >= robotLoc[1] - gpsError &&
+							searchingList[i][1] <= robotLoc[1] + gpsError)
+							*/
+							robotLoc[0] >= (searchingList[i][0] - gpsError) &&
+									robotLoc[0] <= (searchingList[i][0] + gpsError) &&
+									robotLoc[1] >= (searchingList[i][1] - gpsError) &&
+									robotLoc[1] <= (searchingList[i][1] + gpsError))
 					{
 						// add GPS coords to confirmed list
 						confirmedList[i][0] = searchingList[i][0];
@@ -356,7 +354,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 						searchingList[i][0] = -1;
 						searchingList[i][1] = -1;
 
-						Log.i("HERE","NOW");
+						Log.i("HERE","-----COMPLETE");
 					}
 				}
 			}
