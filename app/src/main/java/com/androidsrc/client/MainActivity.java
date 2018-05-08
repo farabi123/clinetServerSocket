@@ -8,43 +8,44 @@ import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.app.Activity;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 
-import java.util.Arrays;
 import java.util.LinkedList;
 
-import static java.util.Arrays.asList;
 
 public class MainActivity extends Activity  implements SensorEventListener {
 
-	TextView response;
+	TextView response, msg;
 	String mainResponse="";
 	Server server;
 	DisplayLists displayLists;
-	TextView infoip, msg;
-	// IP ADDRESS OF BLACK PHONE/MINION
-	boolean pressed = false;
+
 	//variables for compass
 	private SensorManager mSensorManager;
 	private Sensor mCompass, mAccelerometer;
-	float[] mGeomagnetic;
 
 	//variables for logging
 	float[] mGrav;
 	float[] mAcc;
 	float[] mGeo;
 	String TAG1 = "MASTER";
+
 	//variables for logging
 	private Sensor mGyroscope;
 	private Sensor mGravityS;
-	float[] mGravity;
 	float[] mGyro;
 
-	//Master variables
-	boolean isFieldScanComplete = false,
-			isMannequinFound = false;
+	//variables for display
+	TextView list1 ;
+	TextView list2 ;
+	TextView list3 ;
 
-	double[] destinationLoc = new double[2];
+	//Master variables
+	boolean autoMode = false,
+			isFieldScanComplete = false,
+			hasSentMessage = false;
 
 	public double[][] gpsList = new double[25][2],
 			   searchingList = new double[25][2],
@@ -52,7 +53,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 
 	// defines ip addresses for each robot's (/minion's) phone
-	String test = "169.234." + "77.136";
+	String test = "169.234." + "65.236";
 	String ip_doc = test,
 			ip_mr = test,
 			ip_mrs = test,
@@ -64,18 +65,25 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 	// initializes the starting position of robots (/minions)
 	double[] gps_coords = {12,13};    //initialize minion gps
+	double gpsError = 0.000008993;
+
+	// grid corners
+	double [] topLeft = {111,222},
+			topRight = {111,222},
+			bottomLeft = {111,222},
+			bottomRight = {111,222};
 
 	// creates minions for master app to communicate w/ & command
 	Robot doc, mr, mrs, carlito, carlos, carly, carla, carleton;
 
 	// defines a variable used by master app to switch communication among minions
-	Robot robot;
+	Robot robot, assign_mission;
 
-	LinkedList<Robot> free_robots=new LinkedList<>();
+	// robot minions with LIDARs
+	Robot[] libot = {carlito, carlos, carly, carla};;
 
-	TextView list1 ;
-	TextView list2 ;
-	TextView list3 ;
+	LinkedList<Robot> free_robots = new LinkedList<>();
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -90,45 +98,48 @@ public class MainActivity extends Activity  implements SensorEventListener {
 				list1,list2,list3,
 				gpsList,searchingList,confirmedList);
 
+		//add functionality to autoMode button
+		Button buttonAuto = (Button) findViewById(R.id.btnAuto);
+		buttonAuto.setOnClickListener(new View.OnClickListener() {
+			public void onClick(View v) {
+				if (!autoMode) {
+					v.setBackgroundResource(R.drawable.button_auto_on);
+					autoMode = true;
+				} else {
+					v.setBackgroundResource(R.drawable.button_auto_off);
+					autoMode = false;
+				}
+			}
+		});
+
 		// ADDED FROM SERVER
 		msg = (TextView) findViewById(R.id.msg);
-		server = new Server(this,"");
-	//	buttonConnect = (Button) findViewById(R.id.connectButton);
+		server = new Server(this,"HI");
 		response = (TextView) findViewById(R.id.responseTextView);
-	/*	buttonConnect.setOnClickListener(new OnClickListener() {
 
-
-	/*		@Override
-			public void onClick(View arg0) {
-				pressed=true;
-			}
-		});*/
-
-			//myClient = new Client(phoneIpAddress, 8080, response);
-			//myClient.execute();
-
-		doc = new Robot(ip_doc,true, gps_coords);
-		mr = new Robot(ip_mr,true, gps_coords);
-		mrs = new Robot(ip_mrs,true, gps_coords);
-		carlito = new Robot(ip_carlito,true, gps_coords);
-		carlos = new Robot(ip_carlos,true, gps_coords);
-		carly = new Robot(ip_carly,true, gps_coords);
-		carla = new Robot(ip_carla,true, gps_coords);
-		carleton = new Robot(ip_carleton,true, gps_coords);
+		// create robots master controls
+		doc = new Robot(ip_doc,false, gps_coords, response);
+		mr = new Robot(ip_mr,false, gps_coords, response);
+		mrs = new Robot(ip_mrs,false, gps_coords, response);
+		carlito = new Robot(ip_carlito,true, gps_coords, response);
+		carlos = new Robot(ip_carlos,true, gps_coords, response);
+		carly = new Robot(ip_carly,true, gps_coords, response);
+		carla = new Robot(ip_carla,true, gps_coords, response);
+		carleton = new Robot(ip_carleton,false, gps_coords, response);
 
 		// execute threads to run
 		displayLists.execute();
-//		doc.mClient.execute();
-//		mr.mClient.execute();
-//		mrs.mClient.execute();
-//		carlito.mClient.execute();
+		doc.mClient.execute();
+		mr.mClient.execute();
+		mrs.mClient.execute();
+		carlito.mClient.execute();
 		carlos.mClient.execute();
-//		carly.mClient.execute();
-//		carla.mClient.execute();
-//		carleton.mClient.execute();
+		carly.mClient.execute();
+		carla.mClient.execute();
+		carleton.mClient.execute();
 
 
-//set up compass
+		//set up compass
 		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
 		mCompass= mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 		mAccelerometer= mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -144,7 +155,6 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		free_robots.add(carly);
 		free_robots.add(carla);
 		free_robots.add(carleton);
-
 	}
 
 
@@ -166,17 +176,62 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
 			mGeo = event.values;
 
-		/***** MAIN CODE *****/
-		double[] newPos = {12,117};
+		/*      MAIN CODE STARTS HERE    */
 
 		//mainResponse = myClient.response;
 		mainResponse = carlos.mClient.response;
 		//Log.i("app.main.client","mainresponse: "+mainResponse+"\n");
 
+		//ADD loop to rotate through robot link list!!
+		//NOTE: might to add means of holding multiple clients to same server (maybe)
 
+
+		if (autoMode) {
+			if (!isFieldScanComplete) { // search heat has started; scan field for mannequins
+
+				if (!hasSentMessage) { // send messages once
+					// send 4 robots w/ LIDARs to grid corners
+					send_to_m(libot[0], true, true, topLeft);
+					send_to_m(libot[1], true, true, topRight);
+					send_to_m(libot[2], true, true, bottomLeft);
+					send_to_m(libot[3], true, true, bottomRight);
+					hasSentMessage = true;
+				}
+
+				if (!mainResponse.isEmpty() &&
+						isAtDestination(libot[0].getRobotLocation(), libot[0].getDestination()) &&
+						isAtDestination(libot[1].getRobotLocation(), libot[1].getDestination()) &&
+						isAtDestination(libot[2].getRobotLocation(), libot[2].getDestination()) &&
+						isAtDestination(libot[3].getRobotLocation(), libot[3].getDestination()))
+				{ // wait until robots are at grid corners
+
+					receive_from_m(mainResponse);
+					if (libot[0].getFieldScanStatus() && libot[1].getFieldScanStatus() &&
+							libot[2].getFieldScanStatus() && libot[3].getFieldScanStatus())
+					{ // end field scan phase once all robots have finished scans
+						isFieldScanComplete = true;
+					}
+				}
+			} else { // scanned field; confirm mannequin locations
+				// assign free robots to search recorded locations near them
+				while (!free_robots.isEmpty()) {
+					assign_mission = free_robots.pop();
+					setClosestObjectDistance(assign_mission, gpsList);
+					send_to_m(assign_mission,true, false, robot.getDestination());
+				}
+
+				if (!mainResponse.isEmpty()) {
+					receive_from_m(mainResponse);
+				}
+			}
+
+			updateDisplay();
+
+		/*
 		if(!mainResponse.isEmpty()) {
+
+
 			receive_from_m(mainResponse);
-			Robot assign_mission;
 
 			if (isFieldScanComplete) {
 				while (!free_robots.isEmpty()) {
@@ -184,80 +239,29 @@ public class MainActivity extends Activity  implements SensorEventListener {
 					setClosestObjectDistance(assign_mission, gpsList);
 				}
 
+
 				double[] loc = {13.555,117.85};
 				robot.setRobotLocation(loc);
 				robot.setMannStatus(true);
 			}
 			updateDisplay();
 
-			isFieldScanComplete = true;
+			//isFieldScanComplete = true;
 			send_to_m(robot,true,true, newPos);
+			objectLocCounter++;
 
 		}
-		/***** END *****/
+		*/
+		}
+		/*   END    */
 
 
 
 	}
-	/******************************************************************MASTER CONTROLLER FUNCTIONS****************************************/
-	private class Robot {
-		double[] location;
-		boolean isMannequinFound = false;
-		boolean isSearching = false;
-		boolean hasLidar;
-		double[] destination = new double[2];
-		double[] lgps = new double[2];
-		Client mClient;
-		//Server mServer;
-
-		Robot(String phoneIp, boolean hasLidar, double[] location) {
-			this.mClient = new Client(phoneIp,8080, response);
-			//this.mServer = new Server(MainActivity.this);
-			this.hasLidar = hasLidar;
-			this.location = location;
-		}
-
-		double[] getRobotLocation() {
-			return location;
-		}
-
-		void setRobotLocation (double[] location) {
-			this.location = location;
-		}
-
-		void setDestination (double[] destination) {
-			this.destination = destination;
-			this.isSearching = true;
-		}
-
-		void setMannStatus(boolean state) {
-			this.isMannequinFound = state;
-
-			if (isMannequinFound) {
-				this.isSearching = false;
-			}
-		}
-
-		boolean isHasLidar() { return this.hasLidar; }
-
-		boolean getMannStatus() {
-			return this.isMannequinFound;
-		}
-
-		boolean getSearchingStatus() {
-			return this.isSearching;
-		}
-
-		void setObjectLocation (double[] lidarGPS) {
-			this.lgps = lidarGPS;
-		}
-
-		double[] getObjectLocation () { return lgps; }
-	}
-
+	/************************************MASTER CONTROLLER FUNCTIONS*******************************/
 	//receives info in form of string & parses to variables' appropriate types
 	void receive_from_m (String data) {
-		Log.i("app.main.client",""+data+"\n");
+		//Log.i("app.main.client",""+data+"\n");
 		String string_name = data.substring(data.indexOf("NAME"),data.indexOf("GPS")),
 				string_gps = data.substring(data.indexOf("GPS"),data.indexOf("MANN")),
 				string_mann = data.substring(data.indexOf("MANN"),data.indexOf("LGPS")),
@@ -308,48 +312,39 @@ public class MainActivity extends Activity  implements SensorEventListener {
         }
 	}
 
-	// updates phone display
+	// updates gps, searching & confirmed lists arrays & on phone display
 	void updateDisplay () {
 		double[] robotLoc = robot.getRobotLocation();
-		double gpsError = 0.000008993;
-		int index = 100000;
 		double currLAT, currLON;
 
 		if (!isFieldScanComplete) { // robots not have completed scan of field
 			if (robot.isHasLidar()) {
 				// add object location to gps list
-
 				gpsList = addToList(gpsList, robot.getObjectLocation());
 			}
 		} else { // robots have completed scan of field yet
 
 			// move locations from searching to confirmed list once robot has confirmed
 			if (robot.getMannStatus()) {
-				Log.i("HERE","{" + robotLoc[0] + ", " + robotLoc[1] + "}");
-
 				// match GPS coords that were found w/ coords on the list
 				for (int i=0; i<searchingList.length; i++) {
+
 					currLAT = searchingList[i][0];
 					currLON = searchingList[i][1];
-					Log.i("HERE--","{" + currLAT + ", " + currLON + "}");
-					Log.i("HERE--","-----");
-					if ((currLAT >= (robotLoc[0] - gpsError) && (currLAT <= robotLoc[0] + gpsError)) &&
-							(currLON>= (robotLoc[1] - gpsError) && (currLON <= (robotLoc[1] + gpsError))))
-					{
-						index = i;
-						/*
-						// add GPS coords to confirmed list
-						confirmedList[i][0] = searchingList[i][0];
-						confirmedList[i][1] = searchingList[i][1];
+					if(!(currLAT==0 &&currLON==0)&& !(currLAT==-1 &&currLON==-1)){
 
-						// erase GPS coords from unconfirmed list///////////////////////////////////////////////////////////////////
-						searchingList[i][0] = -1;
-						searchingList[i][1] = -1;
+						if ((currLAT >= (robotLoc[0] - gpsError) && (currLAT <= robotLoc[0] + gpsError)) &&
+								(currLON>= (robotLoc[1] - gpsError) && (currLON <= (robotLoc[1] + gpsError))))
+						{
+							// add GPS coords to confirmed list
+							confirmedList[i][0] = searchingList[i][0];
+							confirmedList[i][1] = searchingList[i][1];
 
-						*/
-						Log.i("COMPLETE","-----COMPLETE: " + index);
-
-
+							// erase GPS coords from unconfirmed list
+							searchingList[i][0] = -1;
+							searchingList[i][1] = -1;
+							break;  //question?????????
+						}
 					}
 				}
 			}
@@ -367,17 +362,15 @@ public class MainActivity extends Activity  implements SensorEventListener {
 				"SCANMODE: " + scanMode + ", " +
 				"DEST[LAT:" + dest[0] + ", LON:" + dest[1] + "]";
 
-		Log.i("HERE","A");
-
 		if (scanMode) {
 			if (robot.hasLidar) {
-				server = new Server(this,toMinion);
-				Log.i("HIYA",server.msgReply);
+				server.msgReply123 = toMinion;
+				//Log.i("HERE",server.replyToClient);
 			} else {
 				Log.i(TAG1, "Invalid robot name. Robot not listed as enabled with LIDAR. Only robots with LIDAR can move right now.");
 			}
 		} else {
-			//robot.mServer.msgReply = toMinion;
+			server.msgReply123 = toMinion;
 		}
 	}
 
@@ -420,7 +413,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		//find lat
 		find_colon = str.indexOf(':');
 		find_comma = str.indexOf(',');
-		String first_num = str.substring(find_colon+1, find_comma-1);
+		String first_num = str.substring(find_colon+1, find_comma);
 
 		//cut out lat
 		str = str.substring(find_comma + 1, str.length());
@@ -428,7 +421,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		//find lon
 		find_colon = str.indexOf(':');
 		find_comma = str.indexOf(']');
-		String sec_num = str.substring(find_colon+1, find_comma-1);
+		String sec_num = str.substring(find_colon+1, find_comma);
 
 
 		double[] coords={0,0};
@@ -476,6 +469,24 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		return list;
 
 	}
+
+	private boolean isAtDestination (double[] robotLocation, double[] destination) {
+		boolean hasArrived = false;
+		double currLAT = robotLocation[0],
+				currLON = robotLocation[1],
+				destLat = destination[0],
+				destLon = destination[1];
+
+		if ((destLat >= (currLAT - gpsError) && (destLat <= currLAT + gpsError)) &&
+				(destLon >= (currLON - gpsError) && (destLon <= (currLON + gpsError))))
+		{
+			hasArrived = true;
+		}
+
+		return hasArrived;
+	}
+
+
 
 	//Called whenever activity resumes from pause
 	@Override

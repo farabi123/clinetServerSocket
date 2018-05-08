@@ -70,7 +70,7 @@ public class Client extends AsyncTask<Void, Void, Void> {
 	@Override
 	protected void onPostExecute(Void result) {
 
-		textResponse.setText(response);
+		textResponse.setText("FROM MINION: " + response);
 		super.onPostExecute(result);
 	}
 }
