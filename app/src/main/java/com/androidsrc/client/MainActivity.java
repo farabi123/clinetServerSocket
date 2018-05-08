@@ -79,8 +79,12 @@ public class MainActivity extends Activity  implements SensorEventListener {
 	// defines a variable used by master app to switch communication among minions
 	Robot robot, assign_mission;
 
+	// list of robot minions
+	Robot[] mRobot;
+	int robotCounter = 0;
+
 	// robot minions with LIDARs
-	Robot[] libot = {carlito, carlos, carly, carla};;
+	Robot[] libot;
 
 	LinkedList<Robot> free_robots = new LinkedList<>();
 
@@ -138,6 +142,8 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		carla.mClient.execute();
 		carleton.mClient.execute();
 
+		libot = new Robot[] {carlito, carlos, carly, carla};
+		mRobot = new Robot[] {doc, mr, mrs, carlito, carlos, carly, carla, carleton};
 
 		//set up compass
 		mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
@@ -179,14 +185,15 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		/*      MAIN CODE STARTS HERE    */
 
 		//mainResponse = myClient.response;
-		mainResponse = carlos.mClient.response;
 		//Log.i("app.main.client","mainresponse: "+mainResponse+"\n");
 
 		//ADD loop to rotate through robot link list!!
 		//NOTE: might to add means of holding multiple clients to same server (maybe)
 
+		if (autoMode && !mainResponse.isEmpty()) {
+			mainResponse = mRobot[robotCounter % mRobot.length].mClient.response;
+			receive_from_m(mainResponse);
 
-		if (autoMode) {
 			if (!isFieldScanComplete) { // search heat has started; scan field for mannequins
 
 				if (!hasSentMessage) { // send messages once
@@ -198,34 +205,29 @@ public class MainActivity extends Activity  implements SensorEventListener {
 					hasSentMessage = true;
 				}
 
-				if (!mainResponse.isEmpty() &&
-						isAtDestination(libot[0].getRobotLocation(), libot[0].getDestination()) &&
-						isAtDestination(libot[1].getRobotLocation(), libot[1].getDestination()) &&
-						isAtDestination(libot[2].getRobotLocation(), libot[2].getDestination()) &&
-						isAtDestination(libot[3].getRobotLocation(), libot[3].getDestination()))
+				if (isAtDestination(libot[0].getRobotLocation(), libot[0].getDestination()) &&
+					isAtDestination(libot[1].getRobotLocation(), libot[1].getDestination()) &&
+					isAtDestination(libot[2].getRobotLocation(), libot[2].getDestination()) &&
+					isAtDestination(libot[3].getRobotLocation(), libot[3].getDestination()))
 				{ // wait until robots are at grid corners
 
-					receive_from_m(mainResponse);
 					if (libot[0].getFieldScanStatus() && libot[1].getFieldScanStatus() &&
 							libot[2].getFieldScanStatus() && libot[3].getFieldScanStatus())
 					{ // end field scan phase once all robots have finished scans
 						isFieldScanComplete = true;
 					}
 				}
-			} else { // scanned field; confirm mannequin locations
+			} else { // scanned field; confirm mannequin locations now
 				// assign free robots to search recorded locations near them
 				while (!free_robots.isEmpty()) {
 					assign_mission = free_robots.pop();
 					setClosestObjectDistance(assign_mission, gpsList);
 					send_to_m(assign_mission,true, false, robot.getDestination());
 				}
-
-				if (!mainResponse.isEmpty()) {
-					receive_from_m(mainResponse);
-				}
 			}
 
 			updateDisplay();
+			robotCounter++;
 
 		/*
 		if(!mainResponse.isEmpty()) {
