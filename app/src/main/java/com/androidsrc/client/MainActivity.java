@@ -12,6 +12,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import java.util.Collections;
 import java.util.LinkedList;
 
 
@@ -51,8 +52,18 @@ public class MainActivity extends Activity  implements SensorEventListener {
 			   searchingList = new double[25][2],
 			   confirmedList = new double[25][2];
 
+	// creates minions for master app to communicate w/ & command
+	Robot doc, mr, mrs, carlito, carlos, carly, carla, carleton;
 
-	// defines ip addresses for each robot's (/minion's) phone
+	// defines a variable used by master app to switch communication among minions
+	Robot robot, assign_mission;
+
+	Robot[] mRobot;			// list of robot minions
+	int robotCounter = 0;	// used to switch between robots in mRobots
+	Robot[] libot; 			// robot minions with LIDARs
+	LinkedList<Robot> free_robots = new LinkedList<>();		// used to track free robot minions
+
+	// defines ip addresses for each robot minion's phone
 	String test = "169.234." + "65.236";
 	String ip_doc = test,
 			ip_mr = test,
@@ -68,25 +79,11 @@ public class MainActivity extends Activity  implements SensorEventListener {
 	double gpsError = 0.000008993;
 
 	// grid corners
-	double [] topLeft = {111,222},
+	double[] topLeft = {111,222},
 			topRight = {111,222},
 			bottomLeft = {111,222},
 			bottomRight = {111,222};
 
-	// creates minions for master app to communicate w/ & command
-	Robot doc, mr, mrs, carlito, carlos, carly, carla, carleton;
-
-	// defines a variable used by master app to switch communication among minions
-	Robot robot, assign_mission;
-
-	// list of robot minions
-	Robot[] mRobot;
-	int robotCounter = 0;
-
-	// robot minions with LIDARs
-	Robot[] libot;
-
-	LinkedList<Robot> free_robots = new LinkedList<>();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -131,16 +128,10 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		carla = new Robot(ip_carla,true, gps_coords, response);
 		carleton = new Robot(ip_carleton,false, gps_coords, response);
 
-		// execute threads to run
-		displayLists.execute();
-		doc.mClient.execute();
-		mr.mClient.execute();
-		mrs.mClient.execute();
-		carlito.mClient.execute();
-		carlos.mClient.execute();
-		carly.mClient.execute();
-		carla.mClient.execute();
-		carleton.mClient.execute();
+		// execute robot client threads to run
+		for (Robot robot : mRobot) {
+			robot.mClient.execute();
+		}
 
 		libot = new Robot[] {carlito, carlos, carly, carla};
 		mRobot = new Robot[] {doc, mr, mrs, carlito, carlos, carly, carla, carleton};
@@ -153,14 +144,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		mGravityS = mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
 
 		// add free robot to link list to be assigned search locations later
-		free_robots.add(doc);
-		free_robots.add(mr);
-		free_robots.add(mrs);
-		free_robots.add(carlito);
-		free_robots.add(carlos);
-		free_robots.add(carly);
-		free_robots.add(carla);
-		free_robots.add(carleton);
+		Collections.addAll(free_robots, mRobot);
 	}
 
 
@@ -184,15 +168,14 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 		/*      MAIN CODE STARTS HERE    */
 
-		//mainResponse = myClient.response;
-		//Log.i("app.main.client","mainresponse: "+mainResponse+"\n");
-
-		//ADD loop to rotate through robot link list!!
-		//NOTE: might to add means of holding multiple clients to same server (maybe)
-
 		if (autoMode && !mainResponse.isEmpty()) {
-			mainResponse = mRobot[robotCounter % mRobot.length].mClient.response;
+
+			// cycle through minions & read messages
+			robot =  mRobot[robotCounter % mRobot.length];
+			mainResponse =robot.mClient.response;
 			receive_from_m(mainResponse);
+
+			//Log.i("app.main.client","mainresponse: "+mainResponse+"\n");
 
 			if (!isFieldScanComplete) { // search heat has started; scan field for mannequins
 
@@ -369,7 +352,8 @@ public class MainActivity extends Activity  implements SensorEventListener {
 				server.msgReply123 = toMinion;
 				//Log.i("HERE",server.replyToClient);
 			} else {
-				Log.i(TAG1, "Invalid robot name. Robot not listed as enabled with LIDAR. Only robots with LIDAR can move right now.");
+				Log.i(TAG1, "Invalid robot name. Robot not listed as enabled with LIDAR. " +
+						"Only robots with LIDAR can move right now.");
 			}
 		} else {
 			server.msgReply123 = toMinion;
@@ -380,7 +364,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 	void setClosestObjectDistance(Robot robot, double[][] list) {
 		double[] minLoc = new double[2];
 		//double tooFar = 100000.0;
-		double min = 100000.0; //should be large, not small. I am assuming the position data is positive
+		double min = 100000.0; //should be large, not small. Assuming the position data is positive
 		int minIndex = 0;
 		double[] never_reach_location = {-1,-1};
 		double objDis;
@@ -458,13 +442,6 @@ public class MainActivity extends Activity  implements SensorEventListener {
 			if (mCounter == list.length) {
 				Log.i(TAG1, "GPS List is full!");
 			} else {
-
-//			for (int counter = 0; counter < list.length-1; counter++) {
-//				if (list[mCounter][0] == newEntry[0] && list[mCounter][1] == newEntry[1]) {
-//					isDup = true;
-//				}
-//			}
-
 				list[mCounter] = newEntry;
 			}
 		}
@@ -484,7 +461,6 @@ public class MainActivity extends Activity  implements SensorEventListener {
 		{
 			hasArrived = true;
 		}
-
 		return hasArrived;
 	}
 
