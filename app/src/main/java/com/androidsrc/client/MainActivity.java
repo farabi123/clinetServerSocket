@@ -181,6 +181,8 @@ public class MainActivity extends Activity  implements SensorEventListener {
 					isAtDestination(libot[3].getRobotLocation(), libot[3].getDestination()))
 				{ // wait until robots are at grid corners
 
+					// updateDisplay populates gpsList at this time
+
 					if (libot[0].getFieldScanStatus() && libot[1].getFieldScanStatus() &&
 							libot[2].getFieldScanStatus() && libot[3].getFieldScanStatus())
 					{ // end field scan phase once all robots have finished scans
@@ -190,6 +192,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 				}
 			} else { // scanned field; confirm mannequin locations now
 				// assign free robots to search recorded locations near them
+				// updateDisplay moves list gpsList entries to search & confirmed lists at this time
 				while (!free_robots.isEmpty()) {
 					assign_mission = free_robots.pop();
 					setClosestObjectDistance(assign_mission, gpsList);
@@ -200,6 +203,7 @@ public class MainActivity extends Activity  implements SensorEventListener {
 
 			updateDisplay();
 
+			// read response from minion if there is one
             if (!mainResponse.isEmpty()) {
                 mainResponse = robot.mClient.response;
                 receive_from_m(mainResponse);
