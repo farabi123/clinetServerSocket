@@ -23,7 +23,7 @@ public class Server {
     ServerSocket serverSocket;
     // original
     String message = "";
-    String msgReply123;
+    String msgReply123 = "";
     static final int socketServerPORT = 8080;
 
     public Server(MainActivity activity, String msgReply) {

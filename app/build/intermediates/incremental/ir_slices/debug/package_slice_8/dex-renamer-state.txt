@@ -1,4 +1,4 @@
-#Fri May 04 15:49:13 PDT 2018
-base.0=C\:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\build\\intermediates\\transforms\\dexMerger\\debug\\26
+#Wed May 09 10:30:30 PDT 2018
+base.0=C\:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\build\\intermediates\\transforms\\dexMerger\\debug\\43
 path.0=classes.dex
 renamed.0=classes.dex

@@ -4,6 +4,14 @@
         "source": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\src\\main\\res\\drawable-xxhdpi\\ic_launcher.png"
     },
     {
+        "merged": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\build\\intermediates\\res\\merged\\debug\\drawable-hdpi_button_auto_off.png.flat",
+        "source": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\src\\main\\res\\drawable-hdpi\\button_auto_off.png"
+    },
+    {
+        "merged": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\build\\intermediates\\res\\merged\\debug\\drawable-hdpi_button_auto_on.png.flat",
+        "source": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\src\\main\\res\\drawable-hdpi\\button_auto_on.png"
+    },
+    {
         "merged": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\build\\intermediates\\res\\merged\\debug\\drawable-hdpi_ic_launcher.png.flat",
         "source": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\src\\main\\res\\drawable-hdpi\\ic_launcher.png"
     },
@@ -18,6 +26,10 @@
     {
         "merged": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\build\\intermediates\\res\\merged\\debug\\drawable-xhdpi_ic_launcher.png.flat",
         "source": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\src\\main\\res\\drawable-xhdpi\\ic_launcher.png"
+    },
+    {
+        "merged": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\build\\intermediates\\res\\merged\\debug\\drawable-hdpi_button_auto.xml.flat",
+        "source": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\src\\main\\res\\drawable-hdpi\\button_auto.xml"
     },
     {
         "merged": "C:\\Users\\Joseph\\Documents\\GitHub\\clinetServerSocket\\app\\build\\intermediates\\res\\merged\\debug\\menu_main.xml.flat",
